@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Callable, FrozenSet, Optional, Union
 
 import autoflake
-from isort.api import place_module
+from isort.api import Config, place_module
 
 from . import ShedSyntaxWarning, _version_map, docshed, shed
 
@@ -36,17 +36,20 @@ def _get_git_repo_root(cwd: Optional[str] = None) -> str:
 
 @functools.lru_cache()
 def _guess_first_party_modules(cwd: Optional[str] = None) -> FrozenSet[str]:
-    """Guess the name of the current package for first-party imports."""
+    """Guess the name of the current package for first-party imports."""    
     try:
         base = _get_git_repo_root(cwd)
     except (subprocess.SubprocessError, FileNotFoundError):
         return frozenset()
     provides = {init.parent.name for init in Path(base).glob("**/src/*/__init__.py")}
-    return frozenset(
+    guessed_first_party = frozenset(
         p
         for p in {Path(base).name} | provides
         if p.isidentifier() and place_module(p) != "STDLIB"
     )
+    isort_cfg = Config(settings_path=base)
+
+    return isort_cfg.known_first_party.union(guessed_first_party)
 
 
 @functools.lru_cache(maxsize=None)
